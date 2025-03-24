@@ -1,9 +1,7 @@
 # Compiler
-# Compiler
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers
 LDFLAGS = -lssl -lcrypto
-
 
 # Directories
 SRC_DIR = src
@@ -12,7 +10,7 @@ HEADERS_DIR = src/headers
 BUILD_DIR = build
 
 # Source and object files
-SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/tangle.cpp
+SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/tangle.cpp $(MODULES_DIR)/network.cpp
 OBJ = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SRC)))
 EXEC = tangle_poc
 
