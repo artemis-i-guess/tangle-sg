@@ -100,3 +100,4 @@ void Tangle::updateFromSerialized(const string& data) {
     
     cout << "[LOG] Tangle updated from received data." << endl;
 }
+

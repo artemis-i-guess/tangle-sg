@@ -48,7 +48,7 @@ Transaction simulateSmartMeter(Tangle& tangle) {
         
         cout << "[LOG] Transaction " << newTx.transaction_id << " added to Tangle." << endl;
         broadcastTangle(tangle);
-        this_thread::sleep_for(chrono::minutes(1));
+        this_thread::sleep_for(chrono::minutes(5));
     }
 }
 
