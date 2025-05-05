@@ -12,10 +12,11 @@
 #include <sstream>
 #include <iomanip>
 #include <arpa/inet.h>
+#include <ctime> 
 
 using namespace std;
 
-vector<string> knownNodes = {"192.168.0.121"}; // Example nodes
+vector<string> knownNodes = {"192.168.0.132"}; // Example nodes
 mutex tangleMutex;
 const int PORT = 8080;
 const int BUFFER_SIZE = 4096;
@@ -56,15 +57,27 @@ void printLastTransaction(Tangle &tangle)
         }
     }
 
+    time_t txTime = static_cast<time_t>(stoll(latestTimestamp));
+        time_t currentTime = time(nullptr);
+        double elapsedSeconds = difftime(currentTime, txTime);
+
+    // Convert seconds into human-readable format (e.g., minutes/seconds)
+    int minutes = static_cast<int>(elapsedSeconds) / 60;
+    int seconds = static_cast<int>(elapsedSeconds); 
+
     // Print the last transaction details
     if (!latestTimestamp.empty())
     {
         cout << "[LOG] Last transaction received: ID = " << lastTx.transaction_id
-             << ", Sender = " << lastTx.sender
-             << ", Receiver = " << lastTx.receiver
-             << ", Amount = " << lastTx.amount << " " << lastTx.unit
-             << ", Price per unit = " << lastTx.price_per_unit << " " << lastTx.currency
-             << ", PoW = " << lastTx.proof_of_work << endl;
+             << ", Sender = " << lastTx.sender << endl
+             << ", Receiver = " << lastTx.receiver << endl
+             << ", Amount = " << lastTx.amount << " " << lastTx.unit << endl
+             << ", Price per unit = " << lastTx.price_per_unit << " " << lastTx.currency << endl
+             << ", PoW = " << lastTx.proof_of_work << endl 
+             << ", Time since creation = " << seconds << " sec ago"
+             << endl;
+
+             
     }
     else
     {

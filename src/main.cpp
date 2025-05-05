@@ -10,15 +10,21 @@
 #include "headers/tangle.h"
 #include "headers/network.h"
 
-using namespace std;
+#include <vector>
 
-Transaction simulateSmartMeter(Tangle& tangle) {
+using namespace std;
+using namespace chrono;
+
+void simulateSmartMeter(Tangle& tangle) {
     random_device rd;
     mt19937 gen(rd());
     uniform_real_distribution<> energyDist(0.5, 5.0);
     uniform_real_distribution<> priceDist(0.1, 0.5);
 
-    while (true) {
+    vector<int> timearray ;
+    int i = 0;
+    while (i<1000){
+        i++;
         vector<string> parents = selectTips(tangle);
 
         Transaction newTx;
@@ -34,7 +40,7 @@ Transaction simulateSmartMeter(Tangle& tangle) {
         newTx.proof_of_work = "Pending";
 
         cout << "[LOG] Generating new transaction: " << newTx.transaction_id << endl;
-        
+        auto start = chrono::high_resolution_clock::now();
          // Compute PoW for new transaction
         newTx.proof_of_work = performPoW(newTx.transaction_id, 2);
 
@@ -45,10 +51,14 @@ Transaction simulateSmartMeter(Tangle& tangle) {
 
         // Add the new transaction
         tangle.addTransaction(newTx);
+        auto end=chrono::high_resolution_clock::now();
+        auto elapsed = duration<double, milli> (end - start).count();
         
         cout << "[LOG] Transaction " << newTx.transaction_id << " added to Tangle." << endl;
+        cout << "Time elapsed:" << elapsed << ' ms' << endl;
+
         broadcastTangle(tangle);
-        this_thread::sleep_for(chrono::minutes(5));
+        this_thread::sleep_for(chrono::seconds(10));
     }
 }
 
@@ -59,7 +69,7 @@ int main() {
     Transaction genesis = {"tx0", "2025-03-11T12:00:00Z", "node_A", "node_B", 5.0, "kWh", 0.12, "USD", {}, {"tx3", "tx4"}, 1, ""};
 
     // Compute PoW separately
-    genesis.proof_of_work = performPoW(genesis.transaction_id, 3);
+    genesis.proof_of_work = performPoW(genesis.transaction_id, 2);
     tangle.addTransaction(genesis);
 
     thread serverThread(startServer, ref(tangle));
