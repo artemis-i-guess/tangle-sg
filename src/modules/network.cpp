@@ -12,7 +12,8 @@
 #include <sstream>
 #include <iomanip>
 #include <arpa/inet.h>
-#include <ctime> 
+#include <ctime>
+#include <Python.h>
 
 using namespace std;
 
@@ -58,12 +59,12 @@ void printLastTransaction(Tangle &tangle)
     }
 
     time_t txTime = static_cast<time_t>(stoll(latestTimestamp));
-        time_t currentTime = time(nullptr);
-        double elapsedSeconds = difftime(currentTime, txTime);
+    time_t currentTime = time(nullptr);
+    double elapsedSeconds = difftime(currentTime, txTime);
 
     // Convert seconds into human-readable format (e.g., minutes/seconds)
     int minutes = static_cast<int>(elapsedSeconds) / 60;
-    int seconds = static_cast<int>(elapsedSeconds); 
+    int seconds = static_cast<int>(elapsedSeconds);
 
     // Print the last transaction details
     if (!latestTimestamp.empty())
@@ -73,11 +74,9 @@ void printLastTransaction(Tangle &tangle)
              << ", Receiver = " << lastTx.receiver << endl
              << ", Amount = " << lastTx.amount << " " << lastTx.unit << endl
              << ", Price per unit = " << lastTx.price_per_unit << " " << lastTx.currency << endl
-             << ", PoW = " << lastTx.proof_of_work << endl 
+             << ", PoW = " << lastTx.proof_of_work << endl
              << ", Time since creation = " << seconds << " sec ago"
              << endl;
-
-             
     }
     else
     {
@@ -85,7 +84,7 @@ void printLastTransaction(Tangle &tangle)
     }
 }
 
-void handleClient(int clientSocket, Tangle &tangle)
+void handleTCPClient(int clientSocket, Tangle &tangle)
 {
     char buffer[BUFFER_SIZE] = {0};
     int bytesRead;
@@ -152,10 +151,88 @@ void startServer(Tangle &tangle)
         if (clientSocket >= 0)
         {
             cout << "[LOG] New connection received" << endl;
-            thread clientThread(handleClient, clientSocket, ref(tangle));
+            thread clientThread(handleTCPClient, clientSocket, ref(tangle));
             clientThread.detach();
         }
     }
+}
+
+bool sendOverTCP(string message, string node)
+{
+    int retryCount = 0;
+    while (retryCount < MAX_RETRIES)
+    {
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock == -1)
+        {
+            cerr << "[ERROR] Failed to create socket" << endl;
+            retryCount++;
+            continue;
+        }
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(PORT);
+        inet_pton(AF_INET, node.c_str(), &serverAddr.sin_addr);
+
+        if (connect(sock, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
+        {
+            cerr << "[ERROR] Failed to connect to " << node << " (Attempt " << retryCount + 1 << ")" << endl;
+            close(sock);
+            retryCount++;
+            continue;
+        }
+
+        send(sock, message.c_str(), message.size(), 0);
+        cout << "[LOG] Sent Tangle update to " << node << "using TCP/IP" << endl;
+        close(sock);
+        return true;
+    }
+    return false;
+}
+
+bool sendOverLora(string messageForLora)
+{
+
+    // Import Python module
+    PyObject *pName = PyUnicode_DecodeFSDefault("lora");
+    PyObject *pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+
+    if (pModule)
+    {
+        PyObject *pFunc = PyObject_GetAttrString(pModule, "send_message");
+        if (pFunc && PyCallable_Check(pFunc))
+        {
+            PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(messageForLora.c_str()));
+            PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
+            Py_XDECREF(pArgs);
+            if (pValue)
+            {
+                cout << "[LOG]: LoRa send success\n";
+                Py_DECREF(pValue);
+            }
+            else
+            {
+                PyErr_Print();
+                cerr << "[ERROR]: LoRa send failed\n";
+            }
+        }
+        else
+        {
+            PyErr_Print();
+            std::cerr << "[ERROR]: Cannot find function 'send_message'\n";
+        }
+        Py_XDECREF(pFunc);
+        Py_DECREF(pModule);
+    }
+    else
+    {
+        PyErr_Print();
+        std::cerr << "Failed to load Python module\n";
+    }
+
+    
 }
 
 void broadcastTangle(const Tangle &tangle)
@@ -166,34 +243,104 @@ void broadcastTangle(const Tangle &tangle)
 
     for (const auto &node : knownNodes)
     {
-        int retryCount = 0;
-        while (retryCount < MAX_RETRIES)
+        if (sendOverTCP(message, node))
         {
-            int sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock == -1)
-            {
-                cerr << "[ERROR] Failed to create socket" << endl;
-                retryCount++;
-                continue;
-            }
-
-            sockaddr_in serverAddr{};
-            serverAddr.sin_family = AF_INET;
-            serverAddr.sin_port = htons(PORT);
-            inet_pton(AF_INET, node.c_str(), &serverAddr.sin_addr);
-
-            if (connect(sock, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
-            {
-                cerr << "[ERROR] Failed to connect to " << node << " (Attempt " << retryCount + 1 << ")" << endl;
-                close(sock);
-                retryCount++;
-                continue;
-            }
-
-            send(sock, message.c_str(), message.size(), 0);
-            cout << "[LOG] Sent Tangle update to " << node << endl;
-            close(sock);
-            break;
+            continue;
         }
+        string messageForLora = tangleData + " " + checksum + " " + node;
+        if (!sendOverLora(messageForLora))
+        {
+            cout << "[ERROR] Failed to send data over LoRa" << endl;
+        }
+    }
+}
+
+void handleLoRaClient(Tangle &tangle)
+{
+    // Import Python module
+    PyObject *pName = PyUnicode_DecodeFSDefault("lora");
+    PyObject *pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+
+    pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
+    if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))
+    {
+        std::cerr << "[C++] Cannot find function 'receive_message'\n";
+        goto python_error;
+    }
+
+    while (true)
+    {
+        // Build Python argument tuple: (timeoutSeconds,)
+        double timeoutSeconds = 2.0;
+        PyObject *pArgs = PyTuple_New(1);
+        PyObject *pTimeout = PyFloat_FromDouble(timeoutSeconds);
+        if (!pTimeout)
+        {
+            cerr << "[ERROR] receiveOverLoRaLoop: cannot build timeout arg\n";
+            Py_DECREF(pArgs);
+            return;
+        }
+        PyTuple_SetItem(pArgs, 0, pTimeout);  // steals pTimeout
+
+        // call receive_message(timeout)
+        PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);
+        Py_DECREF(pArgs);
+
+        if (!pResult)
+        {
+            PyErr_Print();
+            cerr << "[ERROR] receiveOverLoRaLoop: Python call failed\n";
+            // Sleep a bit before retrying to avoid spinning on errors
+            this_thread::sleep_for(chrono::milliseconds(500));
+            continue;
+        }
+
+        string receivedStr = "";
+        if (PyUnicode_Check(pResult))
+        {
+            PyObject *pUtf8 = PyUnicode_AsEncodedString(pResult, "utf-8", "strict");
+            if (pUtf8)
+            {
+                receivedStr = PyBytes_AsString(pUtf8);
+                Py_DECREF(pUtf8);
+            }
+        }
+        else
+        {
+            cerr << "[ERROR] receiveOverLoRaLoop: Python did not return a string\n";
+        }
+        Py_DECREF(pResult);
+
+        if (!receivedStr.empty())
+        {
+            // We got something like "<serializedTangle> <checksum>\n"
+            size_t pos = receivedStr.find_last_of(' ');
+            if (pos != string::npos)
+            {
+                string actualData = receivedStr.substr(0, pos);
+                string receivedChecksum = receivedStr.substr(pos + 1);
+                // strip newline if present
+                if (!receivedChecksum.empty() && receivedChecksum.back() == '\n')
+                {
+                    receivedChecksum.pop_back();
+                }
+                if (computeChecksum(actualData) == receivedChecksum)
+                {
+                    lock_guard<mutex> lock(tangleMutex);
+                    tangle.updateFromSerialized(actualData);
+                    cout << "[LOG] Tangle update applied (LoRa).\n";
+                }
+                else
+                {
+                    cerr << "[ERROR] LoRa receive: checksum mismatch\n";
+                }
+            }
+            else
+            {
+                cerr << "[ERROR] LoRa receive: no checksum delimiter\n";
+            }
+        }
+        // If receivedStr is empty, it means timeout—just loop again
     }
 }

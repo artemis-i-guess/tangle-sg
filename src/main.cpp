@@ -4,6 +4,7 @@
 #include <random>
 #include <thread>
 #include <chrono>
+#include <Python.h>
 #include "headers/pow.h"
 #include "headers/tsa.h"
 #include "headers/transaction.h"
@@ -30,6 +31,7 @@ void simulateSmartMeter(Tangle& tangle) {
         Transaction newTx;
         newTx.transaction_id = "tx" + to_string(rand());
         newTx.timestamp = to_string(time(nullptr));
+        newTx.timestampInt = static_cast<int>(time(nullptr));
         newTx.sender = "Meter_001";
         newTx.receiver = "Grid";
         newTx.amount = energyDist(gen);
@@ -39,7 +41,7 @@ void simulateSmartMeter(Tangle& tangle) {
         newTx.previous_transactions = parents;
         newTx.proof_of_work = "Pending";
 
-        cout << "[LOG] Generating new transaction: " << newTx.transaction_id << endl;
+        cout << "[LOG] Generating new transaction: " << newTx.transaction_id << " at:" << newTx.timestamp << endl;
         auto start = chrono::high_resolution_clock::now();
          // Compute PoW for new transaction
         newTx.proof_of_work = performPoW(newTx.transaction_id, 2);
@@ -55,7 +57,7 @@ void simulateSmartMeter(Tangle& tangle) {
         auto elapsed = duration<double, milli> (end - start).count();
         
         cout << "[LOG] Transaction " << newTx.transaction_id << " added to Tangle." << endl;
-        cout << "Time elapsed:" << elapsed << ' ms' << endl;
+        cout << "Time elapsed:" << elapsed << " ms" << endl;
 
         broadcastTangle(tangle);
         this_thread::sleep_for(chrono::seconds(10));
@@ -63,10 +65,18 @@ void simulateSmartMeter(Tangle& tangle) {
 }
 
 int main() {
+
+    // 1) Initialize Python interpreter
+    Py_Initialize();
+
+    // 2) Add current directory (“.”) to sys.path so Python can find lora_module.py
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.append(\".\")");
+
     Tangle tangle;
 
     // Create genesis transaction (without PoW initially)
-    Transaction genesis = {"tx0", "2025-03-11T12:00:00Z", "node_A", "node_B", 5.0, "kWh", 0.12, "USD", {}, {"tx3", "tx4"}, 1, ""};
+    Transaction genesis = {"tx0", "2025-03-11T12:00:00Z", 00000000011, "node_A", "node_B", 5.0, "kWh", 0.12, "USD", {}, {"tx3", "tx4"}, 1, ""};
 
     // Compute PoW separately
     genesis.proof_of_work = performPoW(genesis.transaction_id, 2);

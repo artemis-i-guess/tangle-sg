@@ -5,6 +5,7 @@
 struct Transaction {
     std::string transaction_id;
     std::string timestamp;
+    int timestampInt;
     std::string sender;
     std::string receiver;
     double amount;
