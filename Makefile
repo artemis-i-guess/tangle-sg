@@ -3,6 +3,15 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers
 LDFLAGS = -lssl -lcrypto
 
+# Python Config
+PYTHON_VERSION = 3  # Update if you know the specific version, e.g., 3.9
+PYTHON_CONFIG = python$(PYTHON_VERSION)-config
+PYTHON_CFLAGS = $(shell $(PYTHON_CONFIG) --includes)
+PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG) --ldflags)
+
+CXXFLAGS += $(PYTHON_CFLAGS)
+LDFLAGS += $(PYTHON_LDFLAGS)
+
 # Directories
 SRC_DIR = src
 MODULES_DIR = src/modules
@@ -10,16 +19,16 @@ HEADERS_DIR = src/headers
 BUILD_DIR = build
 
 # Source and object files
-SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/tangle.cpp $(MODULES_DIR)/network.cpp
+SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/network.cpp
 OBJ = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SRC)))
 EXEC = tangle_poc
 
 # Default target
-all: $(BUILD_DIR) $(EXEC) 
+all: $(BUILD_DIR) $(EXEC)
 
 # Build executable
 $(EXEC): $(OBJ)
-	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJ) $(LDFLAGS) 
+	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJ) $(LDFLAGS)
 
 # Compile source files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
