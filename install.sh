@@ -5,8 +5,8 @@ echo "[INFO] Starting setup for Tangle-SG system..."
 # 1. Enable SPI
 echo "[INFO] Enabling SPI..."
 if ! grep -q "^dtparam=spi=on" /boot/config.txt; then
-    echo "dtparam=spi=on" | sudo tee -a /boot/config.txt
-    sudo systemctl restart spi-config
+    sudo sed -i '/^#*dtparam=spi=/c\dtparam=spi=on' /boot/config.txt
+    sudo systemctl restart systemd-modules-load.service
 else
     echo "[INFO] SPI already enabled."
 fi
@@ -17,7 +17,7 @@ sudo apt update && sudo apt upgrade -y
 
 # 3. Install dependencies
 echo "[INFO] Installing required packages..."
-sudo apt install -y python3 python3-pip python3-dev python3-rpi.gpio python3-spidev build-essential g++
+sudo apt install -y libssl-dev python3 python3-pip python3-dev python3-rpi.gpio python3-spidev build-essential g++
 
 # 4. Install Python modules via pip (use --break-system-packages only if needed)
 # echo "[INFO] Installing Python libraries..."
