@@ -68,6 +68,7 @@ int main() {
 
     // 1) Initialize Python interpreter
     Py_Initialize();
+    PyEval_InitThreads();  // Safe to call now; sets up threading
 
     // 2) Add current directory (“.”) to sys.path so Python can find lora_module.py
     PyRun_SimpleString("import sys");
@@ -84,13 +85,15 @@ int main() {
     tangle.addTransaction(genesis);
 
     thread serverThread(startServer, ref(tangle));
-
+    thread loraThread(handleLoRaClient, ref(tangle));
     // Start transaction simulation in a separate thread
     thread simulationThread(simulateSmartMeter, ref(tangle));
 
     // Join the threads to keep the main function active
     serverThread.join();
+    loraThread.join();
     simulationThread.join();
+    
 
     return 0;
 }

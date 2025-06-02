@@ -244,10 +244,10 @@ void broadcastTangle(const Tangle &tangle)
 
     for (const auto &node : knownNodes)
     {
-        if (sendOverTCP(message, node))
-        {
-            continue;
-        }
+        // if (sendOverTCP(message, node))
+        // {
+        //     continue;
+        // }
         string messageForLora = tangleData + " " + checksum + " " + node;
         if (!sendOverLora(messageForLora))
         {
@@ -256,62 +256,139 @@ void broadcastTangle(const Tangle &tangle)
     }
 }
 
+// void handleLoRaClient(Tangle &tangle) {
+//     // Import Python module
+//     // PyObject *pName = PyUnicode_DecodeFSDefault("lora");
+//     PyObject *pModule = PyImport_ImportModule("lora");
+//     // Py_DECREF(pName);
+
+//     PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
+//     if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))
+//     {
+//         std::cerr << "[C++] Cannot find function 'receive_message'\n";
+//         return;
+//     }
+
+//     while (true)
+//     {
+//         // Build Python argument tuple: (timeoutSeconds,)
+//         double timeoutSeconds = 2.0;
+//         PyObject *pArgs = PyTuple_New(1);
+//         PyObject *pTimeout = PyFloat_FromDouble(timeoutSeconds);
+//         if (!pTimeout)
+//         {
+//             cerr << "[ERROR] receiveOverLoRaLoop: cannot build timeout arg\n";
+//             Py_DECREF(pArgs);
+//             return;
+//         }
+//         PyTuple_SetItem(pArgs, 0, pTimeout); // steals pTimeout
+
+//         // call receive_message(timeout)
+//         PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);
+//         Py_DECREF(pArgs);
+
+//         if (!pResult)
+//         {
+//             PyErr_Print();
+//             cerr << "[ERROR] receiveOverLoRaLoop: Python call failed\n";
+//             // Sleep a bit before retrying to avoid spinning on errors
+//             this_thread::sleep_for(chrono::milliseconds(500));
+//             continue;
+//         }
+
+//         string receivedData = "";
+//         if (PyUnicode_Check(pResult))
+//         {
+//             PyObject *pUtf8 = PyUnicode_AsEncodedString(pResult, "utf-8", "strict");
+//             if (pUtf8)
+//             {
+//                 receivedData = PyBytes_AsString(pUtf8);
+//                 Py_DECREF(pUtf8);
+//             }
+//         }
+//         else
+//         {
+//             cerr << "[ERROR] receiveOverLoRaLoop: Python did not return a string\n";
+//         }
+//         Py_DECREF(pResult);
+
+//         if (!receivedData.empty())
+//         {
+//             cout << "[LOG][LORA] Received Tangle update" << endl;
+//             string receivedChecksum = receivedData.substr(receivedData.find_last_of(" ") + 1);
+//             string actualData = receivedData.substr(0, receivedData.find_last_of(" "));
+
+//             if (verifyChecksum(actualData, receivedChecksum))
+//             {
+//                 tangle.updateFromSerialized(actualData);
+//                 cout << "[LOG][LORA] Tangle update verified and applied." << endl;
+//                 printLastTransaction(tangle);
+//             }
+//             else
+//             {
+//                 cerr << "[ERROR][LORA] Data corruption detected!" << endl;
+//             }
+//         }
+//         // If receivedData is empty, it means timeout—just loop again
+//     }
+// }
+
 void handleLoRaClient(Tangle &tangle)
 {
-    // Import Python module
-    // PyObject *pName = PyUnicode_DecodeFSDefault("lora");
-    PyObject *pModule = PyImport_ImportModule("lora");
-    // Py_DECREF(pName);
+    // gstate is required when we want to call the py interpretor outwside the main thread otherwise it will creater segmentation faults
+    PyGILState_STATE gstate = PyGILState_Ensure(); // Acquire GIL
 
+    PyObject *pModule = PyImport_ImportModule("lora");
     PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
+
     if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))
     {
         std::cerr << "[C++] Cannot find function 'receive_message'\n";
+        PyGILState_Release(gstate);
         return;
     }
 
+    PyGILState_Release(gstate); // Release after setup
+
     while (true)
     {
-        // Build Python argument tuple: (timeoutSeconds,)
-        double timeoutSeconds = 2.0;
-        PyObject *pArgs = PyTuple_New(1);
-        PyObject *pTimeout = PyFloat_FromDouble(timeoutSeconds);
-        if (!pTimeout)
-        {
-            cerr << "[ERROR] receiveOverLoRaLoop: cannot build timeout arg\n";
-            Py_DECREF(pArgs);
-            return;
-        }
-        PyTuple_SetItem(pArgs, 0, pTimeout); // steals pTimeout
+        this_thread::sleep_for(chrono::milliseconds(50)); // Just in case
 
-        // call receive_message(timeout)
+        gstate = PyGILState_Ensure(); // Acquire GIL for each call
+
+        PyObject *pArgs = PyTuple_New(1);
+        PyObject *pTimeout = PyFloat_FromDouble(2.0);
+        PyTuple_SetItem(pArgs, 0, pTimeout);
+
         PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);
         Py_DECREF(pArgs);
 
-        if (!pResult)
-        {
-            PyErr_Print();
-            cerr << "[ERROR] receiveOverLoRaLoop: Python call failed\n";
-            // Sleep a bit before retrying to avoid spinning on errors
-            this_thread::sleep_for(chrono::milliseconds(500));
-            continue;
-        }
-
         string receivedData = "";
-        if (PyUnicode_Check(pResult))
+
+        if (pResult)
         {
-            PyObject *pUtf8 = PyUnicode_AsEncodedString(pResult, "utf-8", "strict");
-            if (pUtf8)
+            if (PyUnicode_Check(pResult))
             {
-                receivedData = PyBytes_AsString(pUtf8);
-                Py_DECREF(pUtf8);
+                PyObject *pUtf8 = PyUnicode_AsEncodedString(pResult, "utf-8", "strict");
+                if (pUtf8)
+                {
+                    receivedData = PyBytes_AsString(pUtf8);
+                    Py_DECREF(pUtf8);
+                }
             }
+            else
+            {
+                cerr << "[ERROR] receiveOverLoRaLoop: Python did not return a string\n";
+            }
+            Py_DECREF(pResult);
         }
         else
         {
-            cerr << "[ERROR] receiveOverLoRaLoop: Python did not return a string\n";
+            PyErr_Print();
+            cerr << "[ERROR] receiveOverLoRaLoop: Python call failed\n";
         }
-        Py_DECREF(pResult);
+
+        PyGILState_Release(gstate); // Release GIL before processing in C++
 
         if (!receivedData.empty())
         {
@@ -330,6 +407,5 @@ void handleLoRaClient(Tangle &tangle)
                 cerr << "[ERROR][LORA] Data corruption detected!" << endl;
             }
         }
-        // If receivedData is empty, it means timeout—just loop again
     }
 }
