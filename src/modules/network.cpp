@@ -17,11 +17,11 @@
 
 using namespace std;
 
-vector<string> knownNodes = {"192.168.0.132"}; // Example nodes
+vector<string> knownNodes = {"192.168.29.95"}; // Example nodes
 mutex tangleMutex;
 const int PORT = 8080;
 const int BUFFER_SIZE = 4096;
-const int MAX_RETRIES = 3; // Number of times to retry sending data
+const int MAX_RETRIES = 1; // Number of times to retry sending data
 
 // Computes SHA-256 checksum of the data
 string computeChecksum(const string &data)
@@ -195,9 +195,9 @@ bool sendOverLora(string messageForLora)
 {
 
     // Import Python module
-    PyObject *pName = PyUnicode_DecodeFSDefault("lora");
-    PyObject *pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
+    // PyObject *pName = PyUnicode_DecodeFSDefault("lora");
+    PyObject *pModule = PyImport_ImportModule("lora");
+    // Py_DECREF(pName);
 
     if (pModule)
     {
@@ -259,9 +259,9 @@ void broadcastTangle(const Tangle &tangle)
 void handleLoRaClient(Tangle &tangle)
 {
     // Import Python module
-    PyObject *pName = PyUnicode_DecodeFSDefault("lora");
-    PyObject *pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
+    // PyObject *pName = PyUnicode_DecodeFSDefault("lora");
+    PyObject *pModule = PyImport_ImportModule("lora");
+    // Py_DECREF(pName);
 
     PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
     if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))

@@ -71,7 +71,8 @@ int main() {
 
     // 2) Add current directory (“.”) to sys.path so Python can find lora_module.py
     PyRun_SimpleString("import sys");
-    PyRun_SimpleString("sys.path.append(\".\")");
+    PyRun_SimpleString("sys.path.append(\"src/modules\")");
+    PyRun_SimpleString("print(sys.path)");
 
     Tangle tangle;
 

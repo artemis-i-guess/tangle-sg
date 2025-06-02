@@ -1,10 +1,10 @@
 # lora_module.py
-from sx126x import SX126x
+from sx126x import sx126x
 import time
 
 # Setup once globally
-lora = SX126x()
-lora.begin()
+lora = sx126x("/dev/tty50", 443, 80, 22, True)
+
 
 def send_message(msg: str) -> bool:
     """
@@ -13,7 +13,11 @@ def send_message(msg: str) -> bool:
     """
     try:
         print(f"[Python] Sending via LoRa: {msg}")
+        lora.addr_temp = lora.addr
+        lora.set(lora.freq, 80, 22, True)
         lora.send(msg.encode())
+        time.sleep(0.2)
+        lora.set(lora.freq, lora.addr_temp, 22, True)
         return True
     except Exception as e:
         print(f"[Python] send_message error: {e}")
@@ -27,7 +31,7 @@ def receive_message(timeout: float = 2.0) -> str:
     try:
         start = time.time()
         while True:
-            data = lora.recv()  # Non-blocking or short-blocking read
+            data = lora.receive()  # Non-blocking or short-blocking read
             if data:
                 try:
                     text = data.decode()
