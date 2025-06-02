@@ -1,16 +1,8 @@
 # Compiler
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers
-LDFLAGS = -lssl -lcrypto
-
-# Python Config
-PYTHON_VERSION = 3  # Update if you know the specific version, e.g., 3.9
-PYTHON_CONFIG = python$(PYTHON_VERSION)-config
-PYTHON_CFLAGS = $(shell $(PYTHON_CONFIG) --includes)
-PYTHON_LDFLAGS = $(shell $(PYTHON_CONFIG) --ldflags)
-
-CXXFLAGS += $(PYTHON_CFLAGS)
-LDFLAGS += $(PYTHON_LDFLAGS)
+PYTHON_CONFIG = python3-config
+CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers $(shell $(PYTHON_CONFIG) --cflags)
+LDFLAGS = -lssl -lcrypto $(shell $(PYTHON_CONFIG) --ldflags) $(shell $(PYTHON_CONFIG) --embed --libs)
 
 # Directories
 SRC_DIR = src
@@ -19,7 +11,7 @@ HEADERS_DIR = src/headers
 BUILD_DIR = build
 
 # Source and object files
-SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/network.cpp
+SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/network.cpp $(MODULES_DIR)/tangle.cpp 
 OBJ = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SRC)))
 EXEC = tangle_poc
 
