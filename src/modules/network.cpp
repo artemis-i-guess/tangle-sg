@@ -201,16 +201,17 @@ bool sendOverLora(string messageForLora)
 
     if (pModule)
     {
-        PyObject *pFunc = PyObject_GetAttrString(pModule, "send_message");
-        if (pFunc && PyCallable_Check(pFunc))
+        PyObject *pSendFunc = PyObject_GetAttrString(pModule, "send_message");
+        if (pSendFunc && PyCallable_Check(pSendFunc))
         {
             PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(messageForLora.c_str()));
-            PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
+            PyObject *pValue = PyObject_CallObject(pSendFunc, pArgs);
             Py_XDECREF(pArgs);
             if (pValue)
             {
                 cout << "[LOG]: LoRa send success\n";
                 Py_DECREF(pValue);
+                return true;
             }
             else
             {
@@ -223,7 +224,7 @@ bool sendOverLora(string messageForLora)
             PyErr_Print();
             std::cerr << "[ERROR]: Cannot find function 'send_message'\n";
         }
-        Py_XDECREF(pFunc);
+        Py_XDECREF(pSendFunc);
         Py_DECREF(pModule);
     }
     else
@@ -232,7 +233,7 @@ bool sendOverLora(string messageForLora)
         std::cerr << "Failed to load Python module\n";
     }
 
-    
+    return false;
 }
 
 void broadcastTangle(const Tangle &tangle)
@@ -262,11 +263,11 @@ void handleLoRaClient(Tangle &tangle)
     PyObject *pModule = PyImport_Import(pName);
     Py_DECREF(pName);
 
-    pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
+    PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
     if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))
     {
         std::cerr << "[C++] Cannot find function 'receive_message'\n";
-        goto python_error;
+        return;
     }
 
     while (true)
@@ -281,7 +282,7 @@ void handleLoRaClient(Tangle &tangle)
             Py_DECREF(pArgs);
             return;
         }
-        PyTuple_SetItem(pArgs, 0, pTimeout);  // steals pTimeout
+        PyTuple_SetItem(pArgs, 0, pTimeout); // steals pTimeout
 
         // call receive_message(timeout)
         PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);
@@ -296,13 +297,13 @@ void handleLoRaClient(Tangle &tangle)
             continue;
         }
 
-        string receivedStr = "";
+        string receivedData = "";
         if (PyUnicode_Check(pResult))
         {
             PyObject *pUtf8 = PyUnicode_AsEncodedString(pResult, "utf-8", "strict");
             if (pUtf8)
             {
-                receivedStr = PyBytes_AsString(pUtf8);
+                receivedData = PyBytes_AsString(pUtf8);
                 Py_DECREF(pUtf8);
             }
         }
@@ -312,35 +313,23 @@ void handleLoRaClient(Tangle &tangle)
         }
         Py_DECREF(pResult);
 
-        if (!receivedStr.empty())
+        if (!receivedData.empty())
         {
-            // We got something like "<serializedTangle> <checksum>\n"
-            size_t pos = receivedStr.find_last_of(' ');
-            if (pos != string::npos)
+            cout << "[LOG][LORA] Received Tangle update" << endl;
+            string receivedChecksum = receivedData.substr(receivedData.find_last_of(" ") + 1);
+            string actualData = receivedData.substr(0, receivedData.find_last_of(" "));
+
+            if (verifyChecksum(actualData, receivedChecksum))
             {
-                string actualData = receivedStr.substr(0, pos);
-                string receivedChecksum = receivedStr.substr(pos + 1);
-                // strip newline if present
-                if (!receivedChecksum.empty() && receivedChecksum.back() == '\n')
-                {
-                    receivedChecksum.pop_back();
-                }
-                if (computeChecksum(actualData) == receivedChecksum)
-                {
-                    lock_guard<mutex> lock(tangleMutex);
-                    tangle.updateFromSerialized(actualData);
-                    cout << "[LOG] Tangle update applied (LoRa).\n";
-                }
-                else
-                {
-                    cerr << "[ERROR] LoRa receive: checksum mismatch\n";
-                }
+                tangle.updateFromSerialized(actualData);
+                cout << "[LOG][LORA] Tangle update verified and applied." << endl;
+                printLastTransaction(tangle);
             }
             else
             {
-                cerr << "[ERROR] LoRa receive: no checksum delimiter\n";
+                cerr << "[ERROR][LORA] Data corruption detected!" << endl;
             }
         }
-        // If receivedStr is empty, it means timeout—just loop again
+        // If receivedData is empty, it means timeout—just loop again
     }
 }
