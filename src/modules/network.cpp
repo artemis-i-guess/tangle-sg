@@ -357,7 +357,7 @@ void handleLoRaClient(Tangle &tangle)
         gstate = PyGILState_Ensure(); // Acquire GIL for each call
 
         PyObject *pArgs = PyTuple_New(1);
-        PyObject *pTimeout = PyFloat_FromDouble(2.0);
+        PyObject *pTimeout = PyFloat_FromDouble(10);
         PyTuple_SetItem(pArgs, 0, pTimeout);
 
         PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);

@@ -6,18 +6,40 @@ import time
 lora = sx126x("/dev/tty50", 443, 80, 22, True)
 
 
+# used configs - 
+# addr (address of nodes, must be same for all nodes ) = 80 (16bit address)
+sender_addr = 80
+receiver_addr = 80
+power = 22
+freq = 433
+receiver_freq = 433
+base_freq = 410
+offset_freq = 13
+# base + offset = actual frequency at which data will be sent 
+"""
+Data format - 
+
+"""
+
 def send_message(msg: str) -> bool:
     """
     Sends the given string message over LoRa.
     Returns True on success.
     """
     try:
-        print(f"[Python] Sending via LoRa: {msg}")
-        lora.addr_temp = lora.addr
-        lora.set(lora.freq, 80, 22, True)
-        lora.send(msg.encode())
+        print(f"[Python] Sending via LoRa...")
+
+        data = bytes([receiver_addr>>8]) + bytes([receiver_addr&0xff]) + bytes([offset_freq]) + bytes([lora.addr>>8]) + bytes([lora.addr&0xff]) + bytes([lora.offset_freq]) + msg.encode()
+        
+        lora.send(data)
+
+        # the below print block is basically to just dynamically update the terminal output
+        print('\x1b[1A',end='\r')
+        print(" "*200)
+        print('\x1b[1A',end='\r')
+        print("[Python] Data sent via LoRa")
         time.sleep(0.2)
-        lora.set(lora.freq, lora.addr_temp, 22, True)
+        
         return True
     except Exception as e:
         print(f"[Python] send_message error: {e}")
