@@ -201,7 +201,7 @@ bool sendOverLora(string messageForLora)
 
     if (pModule)
     {
-        PyObject *pSendFunc = PyObject_GetAttrString(pModule, "send_message");
+        PyObject *pSendFunc = PyObject_GetAttrString(pModule, "send");
         if (pSendFunc && PyCallable_Check(pSendFunc))
         {
             PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(messageForLora.c_str()));
@@ -339,7 +339,7 @@ void handleLoRaClient(Tangle &tangle)
     PyGILState_STATE gstate = PyGILState_Ensure(); // Acquire GIL
 
     PyObject *pModule = PyImport_ImportModule("lora");
-    PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive_message");
+    PyObject *pFuncRecv = PyObject_GetAttrString(pModule, "receive");
 
     if (!(pFuncRecv && PyCallable_Check(pFuncRecv)))
     {
@@ -357,10 +357,10 @@ void handleLoRaClient(Tangle &tangle)
         gstate = PyGILState_Ensure(); // Acquire GIL for each call
 
         PyObject *pArgs = PyTuple_New(1);
-        PyObject *pTimeout = PyFloat_FromDouble(10);
-        PyTuple_SetItem(pArgs, 0, pTimeout);
+        // PyObject *pTimeout = PyFloat_FromDouble(10);
+        // PyTuple_SetItem(pArgs, 0, pTimeout);
 
-        PyObject *pResult = PyObject_CallObject(pFuncRecv, pArgs);
+        PyObject *pResult = PyObject_CallObject(pFuncRecv, NULL);
         Py_DECREF(pArgs);
 
         string receivedData = "";

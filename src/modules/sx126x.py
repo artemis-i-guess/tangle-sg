@@ -31,8 +31,8 @@ class sx126x:
     # 410~493MHz      or    850~930MHz
     offset_freq = 18
 
-    power = 22
-    air_speed =2400
+    # power = 22
+    # air_speed =2400
 
     SX126X_UART_BAUDRATE_1200 = 0x00
     SX126X_UART_BAUDRATE_2400 = 0x20
@@ -214,7 +214,7 @@ class sx126x:
 
     def get_settings(self):
         # the pin M1 of lora HAT must be high when enter setting mode and get parameters
-        GPIO.output(self.M1,GPIO.HIGH)
+        GPIO.output(M1,GPIO.HIGH)
         time.sleep(0.1)
         
         # send command to get setting parameters
@@ -232,9 +232,9 @@ class sx126x:
             
             print("Frequence is {0}.125MHz.",fre_temp)
             print("Node address is {0}.",addr_temp)
-            print("Air speed is {0} bps"+ self.lora_air_speed_dic.get(None,air_speed_temp))
-            print("Power is {0} dBm" + self.lora_power_dic.get(None,power_temp))
-            GPIO.output(self.M1,GPIO.LOW)
+            print("Air speed is {0} bps"+ lora_air_speed_dic.get(None,air_speed_temp))
+            print("Power is {0} dBm" + lora_power_dic.get(None,power_temp))
+            GPIO.output(M1,GPIO.LOW)
 
 #
 # the data format like as following
@@ -267,8 +267,6 @@ class sx126x:
             else:
                 pass
                 #print('\x1b[2A',end='\r')
-            
-            
 
     def get_channel_rssi(self):
         GPIO.output(self.M1,GPIO.LOW)
