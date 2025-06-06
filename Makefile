@@ -2,7 +2,8 @@
 CXX = g++
 PYTHON_CONFIG = python3-config
 CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers $(shell $(PYTHON_CONFIG) --cflags)
-LDFLAGS = -lssl -lcrypto $(shell $(PYTHON_CONFIG) --ldflags) $(shell $(PYTHON_CONFIG) --embed --libs)
+LDFLAGS = -lssl -lcrypto $(shell $(PYTHON_CONFIG) --ldflags) $(shell $(PYTHON_CONFIG) --embed --libs) -lpigpio -lpthread -lrt -lm
+
 
 # Directories
 SRC_DIR = src
@@ -11,7 +12,7 @@ HEADERS_DIR = src/headers
 BUILD_DIR = build
 
 # Source and object files
-SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/network.cpp $(MODULES_DIR)/tangle.cpp 
+SRC = $(SRC_DIR)/main.cpp $(MODULES_DIR)/pow.cpp $(MODULES_DIR)/tsa.cpp $(MODULES_DIR)/network.cpp $(MODULES_DIR)/tangle.cpp $(MODULES_DIR)/sx126x.cpp
 OBJ = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SRC)))
 EXEC = tangle_poc
 
