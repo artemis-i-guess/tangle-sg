@@ -5,6 +5,8 @@
 #include <thread>
 #include <chrono>
 #include <Python.h>
+#include <pigpio.h>
+#include <sx126x.h>
 #include "headers/pow.h"
 #include "headers/tsa.h"
 #include "headers/transaction.h"
@@ -66,14 +68,30 @@ void simulateSmartMeter(Tangle& tangle) {
 
 int main() {
 
-    // 1) Initialize Python interpreter
-    Py_Initialize();
-    PyEval_InitThreads();  // Safe to call now; sets up threading
+    if (gpioInitialise() < 0) {
+        std::cerr << "pigpio initialization failed" << std::endl;
+        return 1;
+    }
 
-    // 2) Add current directory (“.”) to sys.path so Python can find lora_module.py
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString("sys.path.append(\"src/modules\")");
-    PyRun_SimpleString("print(sys.path)");
+    // Create SX126X instance (e.g., freq=868 MHz, address=0x1234, power=22dBm, rssi enabled)
+    sx126x lora("/dev/ttyS0", 868, 0x1234, 22, true, 2400, 0, 240, 0, false, false, false);
+
+    // Send a test packet (dest addr high, dest addr low, freq offset, payload)
+    std::vector<uint8_t> packet;
+    packet.push_back(0x12);             // dest addr high byte
+    packet.push_back(0x34);             // dest addr low byte
+    packet.push_back(static_cast<uint8_t>(868 - lora.start_freq)); // freq offset
+    std::string msg = "Hello LoRa";
+    packet.insert(packet.end(), msg.begin(), msg.end());
+    lora.send(packet);
+
+    // Periodically call receive()
+    while (true) {
+        lora.receive();
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    gpioTerminate();
 
     Tangle tangle;
 
@@ -85,14 +103,14 @@ int main() {
     tangle.addTransaction(genesis);
 
     thread serverThread(startServer, ref(tangle));
-    thread loraThread(handleLoRaClient, ref(tangle));
+    // thread loraThread(handleLoRaClient, ref(tangle));
     // Start transaction simulation in a separate thread
-    thread simulationThread(simulateSmartMeter, ref(tangle));
+    // thread simulationThread(simulateSmartMeter, ref(tangle));
 
     // Join the threads to keep the main function active
     serverThread.join();
-    loraThread.join();
-    simulationThread.join();
+    // loraThread.join();
+    // simulationThread.join();
     
 
     return 0;
