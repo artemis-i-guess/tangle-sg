@@ -11,7 +11,7 @@ struct Transaction {
     double amount;
     std::string unit;
     double price_per_unit;
-    std::string currency;
+    std::string currency; 
     std::vector<std::string> previous_transactions;
     std::vector<std::string> validating_transactions;
     int cumulative_weight;

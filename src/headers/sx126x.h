@@ -56,7 +56,7 @@ public:
     void send(const std::vector<uint8_t>& data);
 
     // Check UART for incoming LoRa data, parse & print it (+RSSI if enabled)
-    void receive();
+    std::string receive();
 
     // Request and print noise RSSI (and optional last-packet RSSI)
     void get_channel_rssi();

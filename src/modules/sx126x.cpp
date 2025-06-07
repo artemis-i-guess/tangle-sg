@@ -315,7 +315,7 @@ void sx126x::send(const std::vector<uint8_t>& data) {
     // Ensure normal TX mode: M0=0, M1=0
     gpioWrite(M0, PI_LOW);
     gpioWrite(M1, PI_LOW);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     if (!data.empty()) {
         serWrite(serial_handle,
@@ -327,19 +327,19 @@ void sx126x::send(const std::vector<uint8_t>& data) {
 
 // -------------------- receive() --------------------
 
-void sx126x::receive() {
+std::string sx126x::receive() {
     int available = serDataAvailable(serial_handle);
     if (available > 0) {
         // Give the module time to finish sending bytes
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         int new_available = serDataAvailable(serial_handle);
-        if (new_available <= 0) return;
+        if (new_available <= 0) return "";
 
         std::vector<uint8_t> r_buff(new_available, 0);
         int read_bytes = serRead(serial_handle,
                                    reinterpret_cast<char*>(r_buff.data()),
                                    new_available);
-        if (read_bytes <= 0) return;
+        if (read_bytes <= 0) return "";
 
         // First two bytes = source address
         uint16_t src_addr = (static_cast<uint16_t>(r_buff[0]) << 8)
@@ -356,16 +356,18 @@ void sx126x::receive() {
                                          r_buff.end() - 1);
             std::string payload_str(payload.begin(), payload.end());
             std::cout << "Message is " << payload_str << std::endl;
+
+            return payload_str;
         }
 
         // If RSSI mode is on, interpret last byte
-        if (rssi) {
-            uint8_t packet_rssi = r_buff.back();
-            std::cout << "The packet RSSI value: -"
-                      << static_cast<int>(256 - packet_rssi)
-                      << " dBm" << std::endl;
-            get_channel_rssi();
-        }
+        // if (rssi) {
+        //     uint8_t packet_rssi = r_buff.back();
+        //     std::cout << "The packet RSSI value: -"
+        //               << static_cast<int>(256 - packet_rssi)
+        //               << " dBm" << std::endl;
+        //     get_channel_rssi();
+        // }
     }
 }
 
