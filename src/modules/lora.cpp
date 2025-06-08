@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 #include <string>
+#include <iostream>
 #include "sx126x.h"
 #include "lora.h"
 
@@ -14,6 +15,8 @@ static constexpr auto AIRTIME         = std::chrono::milliseconds(400);
 static constexpr auto MARGIN          = std::chrono::milliseconds(50);
 static constexpr auto PACKET_INTERVAL = AIRTIME + MARGIN; // ~450 ms
 static constexpr auto MSG_TIMEOUT     = 5000; // 5s, considering max 10packets per message
+
+
 
 static std::vector<std::vector<uint8_t>> preparePackets(const uint8_t* data, size_t length) {
     uint16_t total = static_cast<uint16_t>((length + MAX_PAYLOAD - 1) / MAX_PAYLOAD);
@@ -26,13 +29,19 @@ static std::vector<std::vector<uint8_t>> preparePackets(const uint8_t* data, siz
     size_t offset = 0;
     for (uint16_t pid = 0; pid < total; ++pid) {
         size_t chunkSize = std::min(MAX_PAYLOAD, length - offset);
+
+        // high level headers
         PacketHeader hdr{};
         hdr.messageId = msgId;
         hdr.packetId = pid;
         hdr.totalPackets = (pid == 0 ? total : 0);
         hdr.type = (pid == 0) ? PT_START : (pid + 1 == total ? PT_END : PT_MIDDLE);
 
-        std::vector<uint8_t> pkt(sizeof(hdr) + chunkSize);
+        std::vector<uint8_t> pkt(3 + sizeof(hdr) + chunkSize);
+        pkt.push_back(0x12); // dest addr high byte
+        pkt.push_back(0x34); // dest addr low byte
+        pkt.push_back(static_cast<uint8_t>(868-860)); // freq offset
+
         std::memcpy(pkt.data(), &hdr, sizeof(hdr));
         std::memcpy(pkt.data() + sizeof(hdr), data + offset, chunkSize);
         packets.push_back(std::move(pkt));
@@ -57,10 +66,9 @@ bool sendOverLora(std::string str) {
 
 bool receiveOverLora() {
     sx126x lora("/dev/ttyS0", 868, 0x1234, 22, false, 2400, 0, 240, 0, false, false, false);
-
     using Clock = std::chrono::steady_clock;
     auto startTime = Clock::now();
-    uint32_t timeoutMs = MSG_TIMEOUT;
+    uint32_t timeoutMs = 5000;
 
     struct Assembly {
         uint16_t total = 0;
@@ -90,6 +98,11 @@ bool receiveOverLora() {
                     auto& chunk = assembly.parts[i];
                     outMessage.insert(outMessage.end(), chunk.begin(), chunk.end());
                 }
+
+                for(size_t i = 0; i < outMessage.size(); i++){
+                    std::cout << outMessage[i];
+                }
+                std::cout << std::endl;
                 return true;
             }
         }

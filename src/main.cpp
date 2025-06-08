@@ -6,6 +6,7 @@
 #include <chrono>
 #include <pigpio.h>
 #include <lora.h>
+#include <sx126x.h>
 #include "headers/pow.h"
 #include "headers/tsa.h"
 #include "headers/transaction.h"
@@ -74,6 +75,7 @@ void printVec(vector<uint8_t> v)
     cout << str << endl;
 }
 void receiveLoop(){
+    
     while(true){
         receiveOverLora();
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -88,6 +90,9 @@ int main()
         return 1;
     }
 
+    // initializeLora();
+    
+
     Tangle tangle;
 
     // Create genesis transaction (without PoW initially)
@@ -98,13 +103,13 @@ int main()
     tangle.addTransaction(genesis);
 
     // thread serverThread(startServer, ref(tangle));
-    thread loraThread(receiveOverLora);
+    // thread loraThread(receiveLoop);
     // Start transaction simulation in a separate thread
     thread simulationThread(simulateSmartMeter, ref(tangle));
 
     // Join the threads to keep the main function active
     // serverThread.join();
-    loraThread.join();
+    // loraThread.join();
     simulationThread.join();
 
     return 0;

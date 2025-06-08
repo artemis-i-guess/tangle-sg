@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cstdint>
+#include "sx126x.h"
 
 // Maximum payload size per packet
 static const size_t MAX_PAYLOAD = 200;
@@ -22,6 +23,8 @@ struct PacketHeader {
     uint16_t totalPackets;
 };
 #pragma pack(pop)
+
+
 
 // Send a large message over LoRa
 bool sendOverLora(std::string message);
