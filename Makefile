@@ -1,8 +1,8 @@
 # Compiler
 CXX = g++
 PYTHON_CONFIG = python3-config
-CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers $(shell $(PYTHON_CONFIG) --cflags)
-LDFLAGS = -lssl -lcrypto $(shell $(PYTHON_CONFIG) --ldflags) $(shell $(PYTHON_CONFIG) --embed --libs) -lpigpio -lpthread -lrt -lm
+CXXFLAGS = -std=c++17 -Wall -Wextra -I src/headers 
+LDFLAGS = -lssl -lcrypto -lpigpio -lpthread -lrt -lm
 
 
 # Directories

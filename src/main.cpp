@@ -4,7 +4,6 @@
 #include <random>
 #include <thread>
 #include <chrono>
-#include <Python.h>
 #include <pigpio.h>
 #include <lora.h>
 #include "headers/pow.h"
