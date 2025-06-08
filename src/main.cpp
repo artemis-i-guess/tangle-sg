@@ -73,6 +73,12 @@ void printVec(vector<uint8_t> v)
 
     cout << str << endl;
 }
+void receiveLoop(){
+    while(true){
+        receiveOverLora();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
 int main()
 {
 
