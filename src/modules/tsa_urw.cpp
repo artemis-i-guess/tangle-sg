@@ -35,7 +35,7 @@ vector<string> selectTipsURW(Tangle& tangle) {
         }
     }
     if (genesis.empty()) {
-        return {"genesis_fallback"};
+        return {"genesis_fallback"}; //reminder to check what exception to raise for genesis fallback
     }
 
     // Perform two independent unweighted random walks
