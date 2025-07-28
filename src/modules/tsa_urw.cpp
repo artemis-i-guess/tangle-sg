@@ -8,7 +8,7 @@
 using namespace std;
 
 vector<string> selectTipsURW(Tangle& tangle) {
-    // Initialize random engine
+    // Initialize random engine -L> This makes the randomness unpredictable and is suitable for a DAG
     random_device rd;
     mt19937 rng(rd()); // the rng is used later to generate random numbers
     
